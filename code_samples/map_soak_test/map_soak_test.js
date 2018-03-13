@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2008-2018, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 var Hazelcast = require('hazelcast-client');
 var Config = Hazelcast.Config;
 var Client = Hazelcast.Client;
@@ -5,8 +21,12 @@ var Address = Hazelcast.Address;
 var Predicates = Hazelcast.Predicates;
 var IdentifiedEntryProcessor = require('./IdentifiedEntryProcessor');
 var IdentifiedFactory = require('./IdentifiedFactory');
+var NS_IN_MS = 1e6;
+var NS_IN_SEC = 1e9;
+var MS_IN_SEC = 1e6;
 
 process.on('SIGINT', function( ){
+    console.log("Shutting down!");
     stopTest = true;
     nz++;
     if (nz == 2) {
@@ -25,6 +45,7 @@ var runningOperations = 0;
 var startTime;
 var endTime;
 var client;
+var totalOps = 0;
 var nz = 0;
 
 /**
@@ -48,6 +69,7 @@ function testCompleted() {
 
     console.log('Test completed at ' + endTime + '.\n' +
         'Elapsed time(s): ' + fancyDuration(elapsedMilliseconds));
+    console.log('Completed ' + (totalOps/(elapsedMilliseconds/1000)) + ' ops/sec.');
 }
 
 function completeIfNoActiveCallbacks() {
@@ -61,8 +83,28 @@ function handleError(err) {
     process.exit(1);
 }
 
+function hrtimeToNanoSec(t) {
+    return t[0] * NS_IN_MS + t[1];
+}
+
+function hrtimeToMilliSec(t) {
+    return t[0] * MS_IN_SEC + t[1] / NS_IN_MS;
+}
+
 function completeOperation() {
     runningOperations--;
+    totalOps++;
+    if (totalOps % 10000 === 0) {
+        console.log('Completed operation count: ' + totalOps);
+        var lagTimeSt = process.hrtime();
+        setImmediate(function () {
+            var eventLoopLag = process.hrtime(lagTimeSt);
+            //console.log(eventLoopLag);
+            if (hrtimeToNanoSec(eventLoopLag) > 40 * NS_IN_MS) {
+                console.log('Experiencing event loop lag: ' + hrtimeToMilliSec(eventLoopLag) + ' ms.');
+            }
+        });
+    }
     completeIfNoActiveCallbacks();
 }
 
@@ -142,7 +184,7 @@ Client.newHazelcastClient(cfg).then(function (c) {
             var pr;
             if (operation < 30) {
                 pr = map.get(key).then(completeOperation);
-            } else if (operation < 60) {
+            } else if (operation < 80) {
                 pr = map.put(key, randomString()).then(completeOperation);
             } else if (operation < 80) {
                 pr = map.values(Predicates.isBetween('this', 0, 10)).then(completeOperation);
