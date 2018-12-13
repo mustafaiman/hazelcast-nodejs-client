@@ -1,7 +1,7 @@
 #!/bin/sh
 
-HAZELCAST_TEST_VERSION="3.10"
-HAZELCAST_VERSION="3.10"
+HAZELCAST_TEST_VERSION="3.11"
+HAZELCAST_VERSION="3.11"
 
 CLASSPATH="hazelcast-${HAZELCAST_VERSION}.jar:hazelcast-${HAZELCAST_TEST_VERSION}-tests.jar"
 CMD_CONFIGS="-Dhazelcast.multicast.group=224.206.1.1 -Djava.net.preferIPv4Stack=true"

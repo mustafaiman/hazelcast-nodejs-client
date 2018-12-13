@@ -157,7 +157,9 @@ cfg.serializationConfig.dataSerializableFactories[66] = new IdentifiedFactory();
 var map;
 Client.newHazelcastClient(cfg).then(function (c) {
     client = c;
-    map = client.getMap('default');
+    return client.getMap('default');
+}).then(function (m) {
+    map = m;
     return map.addEntryListener(listener);
 }).then(function () {
     startTime = new Date();
